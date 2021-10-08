@@ -58,7 +58,9 @@ sim_best_h = function(isim, best_h, Y_tilde_list, X_tilde_list, d_matrix,
 # ==========
 # EM algorithm
 # ==========
-simEM <- function(isim, kk, Y_tilde_list, X_tilde_list, d_matrix, W_list, label_list, niterations) {
+# res_path <- paste0("~/Desktop/renyimeng/FDU_project/GAGNAR/simulation_pack/result/example3","/")
+simEM <- function(isim, idx_design, Y_tilde_list, X_tilde_list, d_matrix, W_list, label_list, niterations) {
+  load(paste0("~/Desktop/renyimeng/FDU_project/GAGNAR/simulation_realgraph/select_k/k_", idx_design, ".rda"))
   Y_tilde <- Y_tilde_list[[isim]]
   X_tilde <- X_tilde_list[[isim]]
   dd <- d_matrix[[isim]]
@@ -82,9 +84,14 @@ simEM <- function(isim, kk, Y_tilde_list, X_tilde_list, d_matrix, W_list, label_
   em_sigma = list()
   EM_summary = list()
   
+  # lpml <- lapply(sim_res[[isim]], function(each_rep) {each_rep$LPML}) %>% unlist()
+  # best_h_idx <- which.max(lpml)
+  # est_K <- sim_res[[isim]][[best_h_idx]]$Dahlout$zout %>% max()
+  est_K <- best_k[isim]
+  
   for (iter in 1:niterations) {
     cat("replicates:", isim, "iter:",iter, "\r")
-    em_res = EM.NAR(Ymat, WW, Xmat_1, K = kk, seed = iter) # EM estimation
+    em_res = EM.NAR(Ymat, WW, Xmat_1, K = est_K, seed = iter) # EM estimation
     em_theta[[iter]] <- em_res$theta %>% t()
     em_clu[[iter]] <- em_res$ezK
     em_sigma[[iter]] <- em_res$sigma
