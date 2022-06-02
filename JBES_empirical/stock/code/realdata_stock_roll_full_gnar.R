@@ -1,0 +1,199 @@
+# =========
+# load packages
+# =========
+setwd("~/renyimeng/GAGNAR_140/JBES_empirical/stock")
+# setwd("../stock")
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg))
+    install.packages(new.pkg, dependencies = TRUE)
+  try(sapply(pkg, require, character.only = TRUE), silent = TRUE)
+}
+packages <- c("scales", "igraph", "mvtnorm", "MCMCpack", "parallel", "mclust", "plyr", "ggplot2")
+ipak(packages)
+
+source("./code/gagnar.R")
+source("./code/Dahl.R")
+source("./code/LPML_VAR.R")
+source("./code/GNAR_code-master/estimator.R")
+source("./code/real_estimator.R")
+# =========
+# load data
+# =========
+load("./stock_data/rda_full_sparse/Ymat.rda")
+load("./stock_data/rda_full_sparse/Zmat.rda")
+load("./stock_data/rda_full_sparse/Adjmat.rda")
+cat("network density is", sum(adj.mt)/(nrow(adj.mt)^2 - nrow(adj.mt)), "\n")
+load("./stock_data/rda_full_sparse/dmat.rda")  # d.matrix
+Zmat <- scale(Zmat)
+
+# visualize the histogram of stock return
+# yy_dat <- data.frame(ID = 1:nrow(Ymat), value = rowMeans(Ymat))
+# pdf(width=4, height=4, file = "./report/stk_des_2020.pdf")
+# ggplot(yy_dat, aes(x = value)) +
+#   geom_histogram(binwidth = 0.004, color = "black", fill = "grey") +
+#   theme_bw() +
+#   labs(x = "Average Weekly Stock Return Rate", y = "Frequency") +
+#   theme(axis.text = element_text(size = 10))
+# dev.off()
+# mean(yy_dat$value)
+
+# ==========
+# experiment setting
+# ==========
+
+train_window = 40
+test_window = 6
+n_window = 1  # rolling window size
+train_start = 1
+n_test = 1
+flag = TRUE
+test_days = NULL
+pred_rmse = matrix(0, nrow = 7, ncol = 100)
+
+
+while (flag) {
+  train_end = train_start + train_window - 1
+  test_start = train_end
+  test_end = test_start + test_window
+  
+  if ((train_end<ncol(Ymat)) & (test_end>ncol(Ymat))){
+    test_end = ncol(Ymat)
+    flag = F}
+  if (test_start>ncol(Ymat)){
+    flag = F}
+  
+  cat("GAGNAR", train_start, "\n")
+  # 1. split train and test set
+  Ymat_train <- Ymat[,(train_start:train_end)]
+  Ymat_test <- Ymat[,(test_start:test_end)]
+  
+  Ymat_train <- t(Ymat_train)  # T by N
+  Ymat_test <- t(Ymat_test)
+  
+  N = ncol(Ymat_train)
+  TT = nrow(Ymat_train)
+  
+  # 2. build X matrix
+  p <- ncol(Zmat)
+  X_cov <- array(0, dim = c(train_window, N, (p+3)))  # T by N by p
+  for (t in 1:train_window) {
+    X_cov[t,,1] <- 1  # constant
+    X_cov[t,,2] <- 0  # network effect
+    X_cov[t,,3] <- 0  # momentum effect
+    X_cov[t,,4:(p+3)] <- Zmat
+  }
+  adj.mt <- as.matrix(adj.mt)
+  W <- adj.mt/rowSums(adj.mt)
+  W[rowSums(adj.mt)==0,] = 0
+  
+  for (t in 2:train_window) {
+    X_cov[t,,2] <- W %*% Ymat_train[(t-1),]  # network effect
+    X_cov[t,,3] <- Ymat_train[(t-1),]  # network effect
+  }
+  # ===============
+  # compare with GNAR
+  # ===============
+  # ==========
+  # estimation
+  # ==========
+  # 1. split train and test set
+  Ymat_train <- Ymat[,(train_start:train_end)]
+  Ymat_test <- Ymat[,(test_start:test_end)]  # use the last of trainset as start point
+  
+  TT = ncol(Ymat_train)
+  N = nrow(Ymat_train)
+  # 2. build XX matrix
+  p <- ncol(Zmat)
+  W <- adj.mt/rowSums(adj.mt)
+  W[rowSums(adj.mt)==0,] = 0
+  # 3. estimate
+  # (2) est
+  # GNAR_summary = Cluster.NAR(Ymat_train, W, Zmat, K = 5, method="complete", seed = n_test)
+  # Theta = t(GNAR_summary$theta)
+  # Sigma2 <- (GNAR_summary$sigma)^2
+  K = 6
+  GNAR_summary = Cluster.NAR(Ymat_train, W, Zmat, K = 6, method="complete", seed = n_test)
+  Theta = GNAR_summary$theta
+  Sigma2 = (GNAR_summary$sigma)^2
+  # p_values_gnar = matrix(0, nrow = K, ncol = p+3)
+  # for (kk in 1:K) {
+  #   p_values_gnar[kk, ] = (1 - pnorm(abs(Theta[kk, ])/sqrt(diag(GNAR_summary$cov[[kk]]))))*2
+  # }
+  if (train_start == 1) {
+    save(GNAR_summary, file = "./res/est_res_gnar_alpha_0_1_sparse_3.rda")
+    break
+  }
+  
+  # pred_rmse每一行分别为 GAGNAR, CRP, GNAR, NAR, ARMA, AR
+  cat(pred_rmse[, n_test], "\n")
+  n_test = n_test + 1
+  train_start = train_start + n_window
+  test_days = c(test_days, test_start)
+  if ((train_start + train_window - 1) > ncol(Ymat)){flag = F}
+}
+
+print(pred_rmse[,1:(n_test - 1)])
+write.csv(pred_rmse[,1:(n_test - 1)], "./report/pred_rmse_train30_test10_alpha_0_1_sparse3.csv", row.names = F)
+# write.csv(p_values_gnar, "./report/gnar_p_values.csv", row.names = F)
+# 
+# # RMSE line plot
+# start_time_point <- 41:47
+# plot(x = start_time_point, y = pred_rmse[1,1:(n_test - 1)], 
+#      xlab = "Starting Time Point of Test Data", ylab = "ReMSPE", 
+#      col = "red", type = "l", lwd = 2, xaxt="n", lty = 1, ylim = c(0.8,1.5))
+# axis(1, at = start_time_point)
+# lines(x = start_time_point, y = pred_rmse[2,1:(n_test - 1)], col = "#96cac1", type = "l", lwd = 2)
+# lines(x = start_time_point, y = pred_rmse[3,1:(n_test - 1)], col = "#6A93CC", type = "l", lwd = 2)
+# lines(x = start_time_point, y = pred_rmse[4,1:(n_test - 1)], col = "#facb4c", type = "l", lwd = 2)
+# lines(x = start_time_point, y = pred_rmse[5,1:(n_test - 1)], col = "#df9a96", type = "l", lwd = 2)
+# lines(x = start_time_point, y = pred_rmse[6,1:(n_test - 1)], col = "#7f7f7f", type = "l", lwd = 2)
+# legend("topleft", c("GAGNAR", "CRP", "GNAR", "NAR", "ARMA", "AR"), 
+#        col = c("red", "#96cac1", "#6a93cc", "#facb4c", "#df9a96", "#7f7f7f"),
+#        lty = c(1,1,1,1,1,1), lwd = 2)
+# 
+# df_pred = data.frame(ID = rep(start_time_point,6), 
+#                      value = c(t(pred_rmse[c(1,2,3,4,5,6),1:(n_test - 1)])),
+#                      type = c(rep("GAGNAR", n_test - 1), rep("CRP", n_test - 1), rep("GNAR",n_test - 1),
+#                               rep("NAR", n_test - 1), rep("ARMA", n_test - 1), rep("AR", n_test - 1)))
+# df_pred$type <- factor(df_pred$type, levels = c("GAGNAR", "CRP", "GNAR", "NAR", "ARMA", "AR"))
+# 
+# 
+# 
+# pdf(width=5, height=4, file = "./report/stk_pred_rmse.pdf") 
+# ggplot(df_pred, aes(x = as.integer(ID), y = value, group = type)) +
+#   geom_line(aes(color = type), lwd = 0.8) +
+#   scale_color_manual(values = c("red", "#96cac1", "#6a93cc", "#facb4c", "#df9a96", "#7f7f7f")) +
+#   theme_bw() +
+#   ylim(0.8,1.5) +
+#   theme(legend.position = c(0.12,0.78),
+#         legend.background = element_blank(),
+#         legend.title = element_blank(),
+#         text = element_text(size = 12)) +
+#   scale_x_continuous(breaks = c(start_time_point)) +
+#   labs(x = "", y = "ReMSPE")
+# dev.off() 
+# 
+# # 从本地读入结果数据
+# pred_rmse = read.csv("./report/pred_rmse_stock.csv")
+# df_pred = data.frame(ID = rep(start_time_point,6), 
+#                      value = c(t(pred_rmse[c(1,2,3,4,5,6),1:(n_test - 1)])),
+#                      type = c(rep("GAGNAR", n_test - 1), rep("CRP", n_test - 1), rep("GNAR",n_test - 1),
+#                               rep("NAR", n_test - 1), rep("ARMA", n_test - 1), rep("AR", n_test - 1)))
+# df_pred$type <- factor(df_pred$type, levels = c("GAGNAR", "CRP", "GNAR", "NAR", "ARMA", "AR"))
+# 
+# # 不考虑NAR的
+# df_pred1 = df_pred[which(df_pred$type != "NAR"),]
+# pdf(width=5, height=4, file = "./report/stk_pred_rmse_roll.pdf") 
+# ggplot(df_pred1, aes(x = as.integer(ID), y = value, group = type)) +
+#   geom_line(aes(color = type), lwd = 0.8) +
+#   scale_color_manual(values = c("red", "#96cac1", "#6a93cc", "#facb4c", "#df9a96")) +
+#   theme_bw() +
+#   ylim(0.8,1.5) +
+#   theme(legend.position = c(0.12,0.83),
+#         legend.background = element_blank(),
+#         legend.title = element_blank(),
+#         text = element_text(size = 12)) +
+#   scale_x_continuous(breaks = c(start_time_point)) +
+#   labs(x = "Start Time Points", y = "ReMSPE")
+# dev.off() 

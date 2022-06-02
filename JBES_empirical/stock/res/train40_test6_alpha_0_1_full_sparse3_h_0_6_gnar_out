@@ -1,0 +1,80 @@
+Loading required package: scales
+Loading required package: igraph
+
+Attaching package: ‘igraph’
+
+The following objects are masked from ‘package:stats’:
+
+    decompose, spectrum
+
+The following object is masked from ‘package:base’:
+
+    union
+
+Loading required package: mvtnorm
+Loading required package: MCMCpack
+Loading required package: coda
+Loading required package: MASS
+##
+## Markov Chain Monte Carlo Package (MCMCpack)
+## Copyright (C) 2003-2022 Andrew D. Martin, Kevin M. Quinn, and Jong Hee Park
+##
+## Support provided by the U.S. National Science Foundation
+## (Grants SES-0350646 and SES-0350613)
+##
+Loading required package: parallel
+Loading required package: mclust
+Package 'mclust' version 5.4.7
+Type 'citation("mclust")' for citing this R package in publications.
+
+Attaching package: ‘mclust’
+
+The following object is masked from ‘package:mvtnorm’:
+
+    dmvnorm
+
+Loading required package: plyr
+Loading required package: ggplot2
+  scales   igraph  mvtnorm MCMCpack parallel   mclust     plyr  ggplot2 
+    TRUE     TRUE     TRUE     TRUE     TRUE     TRUE     TRUE     TRUE 
+Loading required package: distr
+Loading required package: startupmsg
+:startupmsg>  Utilities for Start-Up Messages (version 0.9.6)
+:startupmsg> 
+:startupmsg>  For more information see ?"startupmsg",
+:startupmsg>  NEWS("startupmsg")
+
+Loading required package: sfsmisc
+:distr>  Object Oriented Implementation of Distributions (version
+:distr>  2.8.0)
+:distr> 
+:distr>  Attention: Arithmetics on distribution objects are
+:distr>  understood as operations on corresponding random variables
+:distr>  (r.v.s); see distrARITH().
+:distr> 
+:distr>  Some functions from package 'stats' are intentionally masked
+:distr>  ---see distrMASK().
+:distr> 
+:distr>  Note that global options are controlled by distroptions()
+:distr>  ---c.f. ?"distroptions".
+:distr> 
+:distr>  For more information see ?"distr", NEWS("distr"), as well as
+:distr>    http://distr.r-forge.r-project.org/
+:distr>  Package "distrDoc" provides a vignette to this package as
+:distr>  well as to several extension packages; try
+:distr>  vignette("distr").
+
+
+Attaching package: ‘distr’
+
+The following object is masked from ‘package:igraph’:
+
+    lattice
+
+The following objects are masked from ‘package:stats’:
+
+    df, qqplot, sd
+
+network density is 0.09478221 
+GAGNAR 1 
+[1] 0 0 0 0 0 0 0
